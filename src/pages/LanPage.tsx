@@ -4,6 +4,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LanDeviceTable, LanSegregationTabs } from "../components/LanDeviceTable";
 import type {
+  InstallerInfo,
   LanBulkRequest,
   LanDevice,
   LanFilterTab,
@@ -31,6 +32,16 @@ export function LanPage({ onLog, busy, setBusy }: LanPageProps) {
     null,
   );
   const [dryRun, setDryRun] = useState(false);
+  const [installer, setInstaller] = useState<InstallerInfo | null>(null);
+
+  const loadInstaller = useCallback(async () => {
+    try {
+      const detected = await invoke<InstallerInfo | null>("detect_installer_path");
+      setInstaller(detected);
+    } catch (e) {
+      onLog("installer", false, String(e));
+    }
+  }, [onLog]);
 
   const loadSubnet = useCallback(async () => {
     try {
@@ -43,7 +54,8 @@ export function LanPage({ onLog, busy, setBusy }: LanPageProps) {
 
   useEffect(() => {
     loadSubnet();
-  }, [loadSubnet]);
+    loadInstaller();
+  }, [loadSubnet, loadInstaller]);
 
   const runScan = async () => {
     setBusy(true);
@@ -96,6 +108,51 @@ export function LanPage({ onLog, busy, setBusy }: LanPageProps) {
     } catch (e) {
       onLog("wallpaper", false, String(e));
     }
+  };
+
+  const pickInstaller = async () => {
+    try {
+      const picked = await open({
+        multiple: false,
+        filters: [{ name: "Installer", extensions: ["exe"] }],
+      });
+      if (!picked || Array.isArray(picked)) return;
+
+      const staged = await invoke<InstallerInfo>("stage_installer_file", {
+        sourcePath: picked,
+      });
+      setInstaller(staged);
+      onLog("installer", true, `Staged installer: ${staged.fileName}`);
+    } catch (e) {
+      onLog("installer", false, String(e));
+    }
+  };
+
+  const deployInstaller = () => {
+    if (!installer) {
+      onLog("installer", false, "No installer found — browse to select setup .exe");
+      return;
+    }
+
+    const selectedDevices = devices.filter((d) => selected.has(d.ip_address));
+    const noWinrm = selectedDevices.filter(
+      (d) => d.device_type === "windows" && !d.winrm_enabled,
+    );
+    if (noWinrm.length > 0) {
+      const proceed = window.confirm(
+        `${noWinrm.length} selected station(s) do not have WinRM enabled. Enable WinRM first, or continue anyway?`,
+      );
+      if (!proceed) return;
+    }
+
+    runBulk({
+      targets: [],
+      username,
+      password,
+      action: "remote_install",
+      installerSourcePath: installer.path,
+      dryRun,
+    });
   };
 
   const runBulk = async (request: LanBulkRequest) => {
@@ -195,8 +252,8 @@ export function LanPage({ onLog, busy, setBusy }: LanPageProps) {
       <header className="page-header">
         <h2>LAN Discovery</h2>
         <p>
-          Find all devices on the local network, enable WinRM, copy setup files,
-          set wallpaper, clean desktops, and optimize gaming stations.
+          Find all devices on the local network, deploy the installer, enable WinRM,
+          copy setup files, set wallpaper, clean desktops, and optimize gaming stations.
         </p>
       </header>
 
@@ -220,6 +277,43 @@ export function LanPage({ onLog, busy, setBusy }: LanPageProps) {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <h3>Remote Installer Deployment</h3>
+        <p className="muted">
+          Push the Game Zone Optimizer setup from this PC to selected stations and
+          run a silent install. Requires WinRM and File and Printer Sharing (SMB).
+          The post-install hook on each PC enables WinRM automatically.
+        </p>
+        <div className="installer-status">
+          {installer ? (
+            <p>
+              <strong>{installer.fileName}</strong>
+              <span className="muted small"> ({installer.source})</span>
+              <br />
+              <span className="muted small">{installer.path}</span>
+            </p>
+          ) : (
+            <p className="muted">Installer not found — browse to select setup .exe</p>
+          )}
+        </div>
+        <div className="toolbar">
+          <button
+            className="btn secondary"
+            onClick={pickInstaller}
+            disabled={busy}
+          >
+            Browse Installer
+          </button>
+          <button
+            className="btn primary"
+            onClick={deployInstaller}
+            disabled={busy || selected.size === 0 || !installer}
+          >
+            Deploy Installer to Selected
+          </button>
+        </div>
+      </div>
 
       <div className="card">
         <h3>Desktop Customization</h3>

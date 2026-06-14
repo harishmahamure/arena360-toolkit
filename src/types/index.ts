@@ -132,11 +132,19 @@ export interface LanBulkRequest {
     | "enable_winrm"
     | "copy_setup"
     | "optimize"
-    | "desktop_customize";
+    | "desktop_customize"
+    | "remote_install";
   wallpaperSourcePath?: string;
+  installerSourcePath?: string;
   removeShortcuts?: boolean;
   setWallpaper?: boolean;
   dryRun?: boolean;
+}
+
+export interface InstallerInfo {
+  path: string;
+  fileName: string;
+  source: "staged" | "auto" | "manual";
 }
 
 export interface StagedWallpaper {

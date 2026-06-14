@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::powershell::{self, StepResult};
@@ -54,6 +54,8 @@ pub struct LanBulkRequest {
     pub set_wallpaper: bool,
     #[serde(default)]
     pub dry_run: bool,
+    #[serde(default)]
+    pub installer_source_path: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -65,6 +67,147 @@ fn default_true() -> bool {
 pub struct StagedWallpaper {
     pub path: String,
     pub file_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallerInfo {
+    pub path: String,
+    pub file_name: String,
+    pub source: String,
+}
+
+const MIN_INSTALLER_BYTES: u64 = 1_048_576;
+
+fn staging_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("staging");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+fn is_valid_installer(path: &Path) -> bool {
+    if path.extension().and_then(|e| e.to_str()) != Some("exe") {
+        return false;
+    }
+    if let Ok(meta) = fs::metadata(path) {
+        if meta.len() < MIN_INSTALLER_BYTES {
+            return false;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        return name.contains("setup")
+            || name.contains("game zone optimizer")
+            || name == "installer.exe";
+    }
+    false
+}
+
+fn installer_info_from(path: PathBuf, source: &str) -> InstallerInfo {
+    InstallerInfo {
+        path: path.to_string_lossy().to_string(),
+        file_name: path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("installer.exe")
+            .to_string(),
+        source: source.to_string(),
+    }
+}
+
+fn find_installers_in_dir(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && is_valid_installer(&path) {
+                found.push(path);
+            }
+        }
+    }
+    found
+}
+
+fn newest_path(paths: Vec<PathBuf>) -> Option<PathBuf> {
+    paths
+        .into_iter()
+        .filter_map(|p| {
+            fs::metadata(&p)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .map(|t| (p, t))
+        })
+        .max_by_key(|(_, t)| *t)
+        .map(|(p, _)| p)
+}
+
+pub fn detect_installer(app: &AppHandle) -> Option<InstallerInfo> {
+    if let Ok(staging) = staging_dir(app) {
+        let staged = staging.join("installer.exe");
+        if staged.exists() && is_valid_installer(&staged) {
+            return Some(installer_info_from(staged, "staged"));
+        }
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            if let Some(path) = newest_path(find_installers_in_dir(dir)) {
+                return Some(installer_info_from(path, "auto"));
+            }
+            if let Some(parent) = dir.parent() {
+                if let Some(path) = newest_path(find_installers_in_dir(parent)) {
+                    return Some(installer_info_from(path, "auto"));
+                }
+            }
+        }
+    }
+
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        let downloads = PathBuf::from(home).join("Downloads");
+        if let Some(path) = newest_path(find_installers_in_dir(&downloads)) {
+            return Some(installer_info_from(path, "auto"));
+        }
+    }
+
+    None
+}
+
+pub fn stage_installer(app: &AppHandle, source: &str) -> Result<PathBuf, String> {
+    let source_path = PathBuf::from(source);
+    if !source_path.exists() {
+        return Err(format!("Installer not found: {source}"));
+    }
+    if !is_valid_installer(&source_path) {
+        return Err(
+            "Invalid installer. Select a Game Zone Optimizer setup .exe (at least 1 MB)."
+                .to_string(),
+        );
+    }
+
+    let staging = staging_dir(app)?;
+    let dest = staging.join("installer.exe");
+    fs::copy(&source_path, &dest).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
+#[tauri::command]
+pub async fn detect_installer_path(app: AppHandle) -> Result<Option<InstallerInfo>, String> {
+    Ok(detect_installer(&app))
+}
+
+#[tauri::command]
+pub async fn stage_installer_file(
+    app: AppHandle,
+    source_path: String,
+) -> Result<InstallerInfo, String> {
+    let staged = stage_installer(&app, &source_path)?;
+    Ok(installer_info_from(staged, "manual"))
 }
 
 pub fn stage_wallpaper(app: &AppHandle, source: &str) -> Result<PathBuf, String> {
@@ -86,13 +229,7 @@ pub fn stage_wallpaper(app: &AppHandle, source: &str) -> Result<PathBuf, String>
         ));
     }
 
-    let staging_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("staging");
-
-    fs::create_dir_all(&staging_dir).map_err(|e| e.to_string())?;
+    let staging_dir = staging_dir(app)?;
 
     let dest = staging_dir.join(format!("wallpaper.{ext}"));
     fs::copy(&source_path, &dest).map_err(|e| e.to_string())?;
@@ -245,11 +382,21 @@ pub async fn lan_bulk_setup(
         config["wallpaperSourcePath"] = serde_json::Value::String(path);
     }
 
+    if let Some(path) = request.installer_source_path {
+        config["installerSourcePath"] = serde_json::Value::String(path);
+    }
+
+    let timeout = if request.action == "remote_install" {
+        powershell::LONG_TIMEOUT * 3
+    } else {
+        powershell::LONG_TIMEOUT
+    };
+
     let result = powershell::run_script(
         &app,
         "Invoke-LanBulkSetup.ps1",
         Some(config),
-        powershell::LONG_TIMEOUT,
+        timeout,
     )
     .map_err(|e| e.to_string())?;
 

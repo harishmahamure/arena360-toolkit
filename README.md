@@ -41,6 +41,7 @@ Game Zone Optimizer is designed for venues that run many Windows gaming PCs on a
 | Module | What it does |
 |--------|----------------|
 | **LAN Discovery** | Auto-detect subnet, scan all connected devices, classify Windows vs other, check WinRM readiness |
+| **Remote Installer** | Push NSIS setup from admin PC to LAN stations via SMB + silent install |
 | **Desktop Customize** | Admin-picked wallpaper + remove all desktop shortcuts across LAN stations |
 | **Bulk LAN Setup** | Enable WinRM, copy setup scripts, optimize multiple stations from admin PC |
 | **Debloat** | Remove bloatware (AppX + classic) using Light / Standard / Aggressive presets |
@@ -221,6 +222,35 @@ The **LAN** page is the central hub for multi-PC game zone setup.
    | **Optimize Selected** | Pushes full gaming profile (debloat, telemetry, WU off, services, gaming tweaks) |
    | **Apply Wallpaper & Clean Desktop** | Copies admin-picked image + removes all desktop shortcuts on selected PCs |
    | **Remove Shortcuts Only** | Deletes all `.lnk` and `.url` from Public and user desktops (Recycle Bin kept) |
+   | **Deploy Installer to Selected** | Copies setup `.exe` to each PC and runs silent NSIS install (`/S`) |
+
+### Remote installer deployment
+
+From the **Remote Installer Deployment** card on the LAN page, push the Game Zone Optimizer NSIS installer from the admin PC to selected stations:
+
+1. **Auto-detect** — on page load the app searches for a setup `.exe` in this order:
+   - `%APPDATA%\GameZoneOptimizer\staging\installer.exe` (previously staged)
+   - Directory of the running app — `*setup*.exe` or `Game Zone Optimizer*.exe`
+   - Parent of the install directory (common when setup sits next to the install folder)
+   - `%USERPROFILE%\Downloads\*setup*.exe` (newest by modified time)
+2. **Browse Installer** — pick any valid setup `.exe` (must be at least 1 MB); file is staged to `%APPDATA%\GameZoneOptimizer\staging\installer.exe`.
+3. Select target Windows stations and enter admin credentials.
+4. Enable **Dry run** (shared checkbox in Desktop Customization) to preview SMB copy only — no install.
+5. Click **Deploy Installer to Selected**.
+
+**Per-station flow:**
+- SMB copy to `\\<ip>\C$\ProgramData\GameZoneOptimizer\installer.exe`
+- WinRM `Invoke-Command` runs `installer.exe /S` (silent per-user NSIS install)
+- Verifies install via Windows uninstall registry keys
+- Post-install NSIS hook (`installer-hooks.nsi`) enables WinRM on the remote PC automatically
+
+**Requirements:**
+- Shared local admin credentials on target PCs
+- WinRM enabled on targets (use **Enable WinRM on Selected** first; app warns if selected PCs lack WinRM)
+- File and Printer Sharing enabled for SMB admin share access
+- Large installer (~50–100 MB) — deploys sequentially per device; progress appears in **Logs**
+
+**Already installed:** if the uninstall registry key exists, the station is skipped with an "Already installed" message.
 
 ### Desktop customization (wallpaper + shortcuts)
 

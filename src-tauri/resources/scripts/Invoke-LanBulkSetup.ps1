@@ -8,8 +8,9 @@ $config = Get-Config -Json $ConfigJson
 $targets = @($config['targets'])
 $username = $config['username']
 $password = $config['password']
-$action = $config['action']  # enable_winrm | copy_setup | optimize | desktop_customize
+$action = $config['action']  # enable_winrm | copy_setup | optimize | desktop_customize | remote_install
 $wallpaperSourcePath = $config['wallpaperSourcePath']
+$installerSourcePath = $config['installerSourcePath']
 $removeShortcuts = if ($null -ne $config['removeShortcuts']) { [bool]$config['removeShortcuts'] } else { $true }
 $setWallpaper = if ($null -ne $config['setWallpaper']) { [bool]$config['setWallpaper'] } else { $true }
 $dryRun = [bool]($config['dryRun'])
@@ -142,6 +143,75 @@ Restart-Service WinRM -Force
             }
             catch {
                 $steps += (Add-Step -Step 'desktop_customize' -Success $false -Message "Desktop customize failed on ${ip}: $($_.Exception.Message)")
+            }
+        }
+        elseif ($action -eq 'remote_install') {
+            $remoteDir = "\\$ip\C$\ProgramData\GameZoneOptimizer"
+            $remoteInstaller = 'C:\ProgramData\GameZoneOptimizer\installer.exe'
+
+            try {
+                if (-not $installerSourcePath -or -not (Test-Path $installerSourcePath)) {
+                    $steps += (Add-Step -Step 'remote_install' -Success $false -Message "Installer source missing for $ip")
+                    continue
+                }
+
+                if (-not (Test-Path $remoteDir)) {
+                    New-Item -Path $remoteDir -ItemType Directory -Force | Out-Null
+                }
+
+                Copy-Item -Path $installerSourcePath -Destination (Join-Path $remoteDir 'installer.exe') -Force -ErrorAction Stop
+                $steps += (Add-Step -Step 'remote_install' -Success $true -Message "Installer copied to $ip")
+
+                if ($dryRun) {
+                    $steps += (Add-Step -Step 'remote_install' -Success $true -Message "Dry run: would silently install on $ip")
+                    continue
+                }
+
+                $remoteResult = Invoke-Command -ComputerName $ip -Credential $cred -ScriptBlock {
+                    param($InstallerPath)
+                    $appId = 'com.gamezone.optimizer'
+                    $uninstallKeys = @(
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+                    )
+
+                    function Test-GameZoneInstalled {
+                        foreach ($key in $uninstallKeys) {
+                            $existing = Get-ItemProperty $key -ErrorAction SilentlyContinue |
+                                Where-Object { $_.DisplayName -like '*Game Zone Optimizer*' -or $_.BundleApplicationId -eq $appId }
+                            if ($existing) { return $true }
+                        }
+                        return $false
+                    }
+
+                    if (Test-GameZoneInstalled) {
+                        return @{ alreadyInstalled = $true; exitCode = 0; message = 'Already installed' }
+                    }
+
+                    $proc = Start-Process -FilePath $InstallerPath -ArgumentList '/S' -Wait -PassThru -ErrorAction Stop
+                    $exitCode = $proc.ExitCode
+                    $installed = Test-GameZoneInstalled
+                    return @{
+                        alreadyInstalled = $false
+                        exitCode         = $exitCode
+                        installed        = $installed
+                        message          = if ($installed) { 'Install verified in registry' } else { "Silent install exit code $exitCode" }
+                    }
+                } -ArgumentList $remoteInstaller -ErrorAction Stop
+
+                if ($remoteResult.alreadyInstalled) {
+                    $steps += (Add-Step -Step 'remote_install' -Success $true -Message "${ip}: Already installed")
+                }
+                elseif ($remoteResult.exitCode -eq 0 -and $remoteResult.installed) {
+                    $steps += (Add-Step -Step 'remote_install' -Success $true -Message "${ip}: Installed successfully (post-install WinRM hook runs automatically)")
+                }
+                else {
+                    $steps += (Add-Step -Step 'remote_install' -Success $false -Message "${ip}: Install failed - $($remoteResult.message)")
+                }
+            }
+            catch {
+                $steps += (Add-Step -Step 'remote_install' -Success $false -Message "Remote install failed on ${ip}: $($_.Exception.Message)")
             }
         }
     }

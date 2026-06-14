@@ -31,6 +31,8 @@ pub fn run() {
             commands::lan::classify_lan_devices,
             commands::lan::lan_bulk_setup,
             commands::lan::stage_wallpaper_file,
+            commands::lan::detect_installer_path,
+            commands::lan::stage_installer_file,
             commands::lan::apply_desktop_customize,
             commands::lan::run_post_install_setup,
             commands::remote::test_winrm_connection,
