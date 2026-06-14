@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "candy-crush",
+      "name": "Candy Crush Saga",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["light", "standard", "aggressive"],
+      "patterns": ["*CandyCrush*", "King.com.CandyCrush*"]
+    },
+    {
+      "id": "clipchamp",
+      "name": "Clipchamp",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["light", "standard", "aggressive"],
+      "patterns": ["Clipchamp.Clipchamp*"]
+    },
+    {
+      "id": "teams-consumer",
+      "name": "Microsoft Teams (personal)",
+      "kind": "appx",
+      "optional": true,
+      "presets": ["standard", "aggressive"],
+      "patterns": ["*Teams*", "MSTeams*"]
+    },
+    {
+      "id": "news",
+      "name": "Microsoft News",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["light", "standard", "aggressive"],
+      "patterns": ["*News*", "Microsoft.BingNews*"]
+    },
+    {
+      "id": "weather",
+      "name": "Microsoft Weather",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["light", "standard", "aggressive"],
+      "patterns": ["*Weather*", "Microsoft.BingWeather*"]
+    },
+    {
+      "id": "copilot",
+      "name": "Microsoft Copilot",
+      "kind": "appx",
+      "optional": true,
+      "presets": ["standard", "aggressive"],
+      "patterns": ["*Copilot*", "Microsoft.Copilot*"]
+    },
+    {
+      "id": "solitaire",
+      "name": "Microsoft Solitaire Collection",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["light", "standard", "aggressive"],
+      "patterns": ["*Solitaire*"]
+    },
+    {
+      "id": "onenote",
+      "name": "OneNote (Store)",
+      "kind": "appx",
+      "optional": true,
+      "presets": ["aggressive"],
+      "patterns": ["*OneNote*"]
+    },
+    {
+      "id": "skype",
+      "name": "Skype",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["standard", "aggressive"],
+      "patterns": ["*Skype*"]
+    },
+    {
+      "id": "zune-music",
+      "name": "Groove Music / Media",
+      "kind": "appx",
+      "optional": false,
+      "presets": ["standard", "aggressive"],
+      "patterns": ["*ZuneMusic*", "*MediaPlayer*"]
+    },
+    {
+      "id": "xbox-game-bar",
+      "name": "Xbox Game Bar",
+      "kind": "appx",
+      "optional": true,
+      "presets": ["aggressive"],
+      "patterns": ["*XboxGamingOverlay*", "*GameBar*"]
+    },
+    {
+      "id": "onedrive",
+      "name": "OneDrive",
+      "kind": "classic",
+      "optional": true,
+      "presets": ["aggressive"],
+      "patterns": ["OneDrive"]
+    }
+  ]
+}

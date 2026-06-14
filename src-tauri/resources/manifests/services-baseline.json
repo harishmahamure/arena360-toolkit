@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "services": [
+    { "name": "RpcSs", "category": "essential", "description": "Remote Procedure Call" },
+    { "name": "PlugPlay", "category": "essential", "description": "Plug and Play" },
+    { "name": "Winmgmt", "category": "essential", "description": "Windows Management Instrumentation" },
+    { "name": "EventLog", "category": "essential", "description": "Windows Event Log" },
+    { "name": "Dhcp", "category": "essential", "description": "DHCP Client" },
+    { "name": "Dnscache", "category": "essential", "description": "DNS Client" },
+    { "name": "DiagTrack", "category": "gaming_safe_disable", "description": "Connected User Experiences and Telemetry" },
+    { "name": "dmwappushservice", "category": "gaming_safe_disable", "description": "WAP Push Message Routing" },
+    { "name": "SysMain", "category": "gaming_safe_disable", "description": "SysMain (Superfetch)" },
+    { "name": "WSearch", "category": "gaming_safe_disable", "description": "Windows Search" },
+    { "name": "Fax", "category": "gaming_safe_disable", "description": "Fax Service" },
+    { "name": "MapsBroker", "category": "gaming_safe_disable", "description": "Downloaded Maps Manager" },
+    { "name": "lfsvc", "category": "gaming_safe_disable", "description": "Geolocation Service" },
+    { "name": "RetailDemo", "category": "gaming_safe_disable", "description": "Retail Demo Service" },
+    { "name": "Spooler", "category": "contextual", "description": "Print Spooler" },
+    { "name": "bthserv", "category": "contextual", "description": "Bluetooth Support" },
+    { "name": "WMPNetworkSvc", "category": "gaming_safe_disable", "description": "Windows Media Player Network Sharing" },
+    { "name": "XblAuthManager", "category": "contextual", "description": "Xbox Live Auth Manager" },
+    { "name": "XblGameSave", "category": "contextual", "description": "Xbox Live Game Save" },
+    { "name": "XboxNetApiSvc", "category": "contextual", "description": "Xbox Live Networking Service" },
+    { "name": "wuauserv", "category": "gaming_safe_disable", "description": "Windows Update" },
+    { "name": "UsoSvc", "category": "gaming_safe_disable", "description": "Update Orchestrator Service" }
+  ]
+}

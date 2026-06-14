@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "powerPlan": "high_performance",
+  "gameMode": true,
+  "hags": false,
+  "visualEffects": "best_performance",
+  "disableMouseAcceleration": true,
+  "disableSysMain": true,
+  "disableSearchIndexing": true,
+  "disableDeliveryOptimization": true,
+  "disableHibernation": true,
+  "disableBackgroundApps": true,
+  "networkTweaks": true,
+  "disableConsumerFeatures": true,
+  "disableTips": true,
+  "removeDesktopShortcuts": true,
+  "applyWallpaper": false
+}
