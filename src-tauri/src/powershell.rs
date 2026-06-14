@@ -192,7 +192,7 @@ pub fn is_elevated() -> bool {
             &mut size,
         );
 
-        result.is_ok() && elevation.TokenIsElevated.as_bool()
+        result.is_ok() && elevation.TokenIsElevated != 0
     }
 }
 
