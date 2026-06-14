@@ -12,6 +12,9 @@ export function useAdminCheck() {
   useEffect(() => {
     invoke<AdminStatus>("check_admin")
       .then(setStatus)
+      .catch(() => {
+        setStatus({ is_windows: false, is_elevated: false });
+      })
       .finally(() => setLoading(false));
   }, []);
 

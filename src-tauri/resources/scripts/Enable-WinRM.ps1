@@ -1,10 +1,19 @@
-#Requires -RunAsAdministrator
 #Requires -Version 5.1
+param(
+    [switch]$Elevated
+)
 <#
 .SYNOPSIS
     Enables WinRM on a gaming PC for remote optimization from the admin station.
+    Prompts for administrator elevation when needed.
 #>
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot '_Common.ps1')
+
+if (-not $Elevated -and -not (Test-IsAdministrator)) {
+    Request-AdministratorElevation -ScriptPath $PSCommandPath -Reason 'WinRM setup requires administrator privileges to configure remoting and firewall rules.'
+}
 
 Write-Host 'Enabling WinRM...' -ForegroundColor Cyan
 

@@ -31,11 +31,18 @@ pub fn resolve_script_path(app: &AppHandle, script_name: &str) -> Result<PathBuf
         .resource_dir()
         .map_err(|e| PsError::ExecutionFailed(e.to_string()))?;
 
-    let candidates = [
+    let mut candidates = vec![
         resource_dir.join("scripts").join(script_name),
         resource_dir.join(script_name),
         PathBuf::from("src-tauri/resources/scripts").join(script_name),
     ];
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidates.push(exe_dir.join("resources/scripts").join(script_name));
+            candidates.push(exe_dir.join("scripts").join(script_name));
+        }
+    }
 
     for path in candidates {
         if path.exists() {
@@ -52,11 +59,18 @@ pub fn resolve_manifest_path(app: &AppHandle, manifest_name: &str) -> Result<Pat
         .resource_dir()
         .map_err(|e| PsError::ExecutionFailed(e.to_string()))?;
 
-    let candidates = [
+    let mut candidates = vec![
         resource_dir.join("manifests").join(manifest_name),
         resource_dir.join(manifest_name),
         PathBuf::from("src-tauri/resources/manifests").join(manifest_name),
     ];
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidates.push(exe_dir.join("resources/manifests").join(manifest_name));
+            candidates.push(exe_dir.join("manifests").join(manifest_name));
+        }
+    }
 
     for path in candidates {
         if path.exists() {

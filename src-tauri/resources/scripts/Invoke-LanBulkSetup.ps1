@@ -50,13 +50,20 @@ Restart-Service WinRM -Force
             }
         }
         elseif ($action -eq 'copy_setup') {
-            $remoteDir = "\\$ip\C$\ProgramData\GameZoneOptimizer"
+            $remoteRoot = "\\$ip\C$\ProgramData\GameZoneOptimizer"
+            $remoteScriptsDir = Join-Path $remoteRoot 'scripts'
+            $remoteManifestsDir = Join-Path $remoteRoot 'manifests'
             try {
-                if (-not (Test-Path $remoteDir)) {
-                    New-Item -Path $remoteDir -ItemType Directory -Force | Out-Null
+                foreach ($dir in @($remoteRoot, $remoteScriptsDir, $remoteManifestsDir)) {
+                    if (-not (Test-Path $dir)) {
+                        New-Item -Path $dir -ItemType Directory -Force | Out-Null
+                    }
                 }
-                Copy-Item -Path (Join-Path $scriptRoot 'Enable-WinRM.ps1') -Destination $remoteDir -Force -ErrorAction Stop
-                Copy-Item -Path (Join-Path $scriptRoot '*.ps1') -Destination $remoteDir -Force -ErrorAction SilentlyContinue
+                Copy-Item -Path (Join-Path $scriptRoot '*.ps1') -Destination $remoteScriptsDir -Force -ErrorAction Stop
+                $manifestSource = Join-Path (Split-Path $scriptRoot -Parent) 'manifests'
+                if (Test-Path $manifestSource) {
+                    Copy-Item -Path (Join-Path $manifestSource '*.json') -Destination $remoteManifestsDir -Force -ErrorAction SilentlyContinue
+                }
                 $steps += (Add-Step -Step 'lan_copy' -Success $true -Message "Setup files copied to $ip")
             }
             catch {
